@@ -1,0 +1,22 @@
+{
+  "name": "cesium-test",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "pinia": "^2.0.23",
+    "sass": "^1.63.6",
+    "sass-loader": "^13.3.2",
+    "vue": "^3.2.41",
+    "vue-router": "^4.1.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^3.1.2",
+    "cesium": "^1.116.0",
+    "vite": "^3.2.10",
+    "vite-plugin-cesium": "^1.2.22"
+  }
+}
