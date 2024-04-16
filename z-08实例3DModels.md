@@ -1,0 +1,56 @@
+> 案例地址：https://sandcastle.cesium.com/index.html?src=3D%20Models.html&label=All
+本案例核心包括：
+- 3D模型加载
+- 模型姿态调整
+
+```js
+//创建视图容器
+const viewer = new Cesium.Viewer("cesiumContainer", {
+  infoBox: false,//是否显示信息框
+  selectionIndicator: false,//是否显示选择指示器
+  shadows: true,//是否显示阴影
+  shouldAnimate: true,//是否显示动画
+});
+/*
+*创建模型
+* @param {String} url 模型地址 可以是本地资源牡蛎地址，也可以是IonResource对象
+* @param  {Number} height 模型高度
+* */
+function createModel(url, height) {
+  viewer.entities.removeAll();//移出所有实体
+  //将地理坐标（经纬度坐标）转换为笛卡尔坐标（Cartesian3）
+  const position = Cesium.Cartesian3.fromDegrees(
+    -123.0744619,
+    44.0503706,
+    height 
+  );
+  const heading = Cesium.Math.toRadians(135);
+  const pitch = 0;
+  const roll = 0;
+  /*
+  * headPitchRoll概念:通常用于描述县级或物体在3纬空间中的旋转状态
+  * heading:表示物体沿着本地水平面的旋转角度，如果把一个物体放在地面，然后围绕它垂直于地面的轴旋转，那么这个旋转的角度就是Heading。通常，Heading的正方向是从正北向正东。
+  * Pitch:表示物体相对于本地水平面向上或向下的旋转角度。例如，如果你把一个物体放在地面上，然后让它的前端向上抬起，那么这个抬起的角度就是Pitch。Pitch的正方向通常是向上。
+  * Roll:表示物体绕着自己的前向轴的旋转角度。如果你让一个物体沿着它前进的方向旋转，那么这个旋转的角度就是Roll。Roll的正方向通常是从右向左。
+  * */
+  const hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll);
+  //根据物体的位置和旋转计算出一个表示物体方向的四元数
+  const orientation = Cesium.Transforms.headingPitchRollQuaternion(
+    position,
+    hpr
+  );
+  //添加实体到场景中
+  const entity = viewer.entities.add({
+    name: url,
+    position: position,
+    orientation: orientation,//位置和朝向（通常为四元数）
+    model: {
+      uri: url,
+      //控制模型的最大最小像素大小
+      minimumPixelSize: 128,
+      maximumScale: 20000,
+    },
+  });
+  viewer.trackedEntity = entity;//跟踪实体
+}
+```
