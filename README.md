@@ -1,29 +1,20 @@
-# cesium-test
+# 介绍
+这是一个基于Vue3+Vite的cesium学习环境，用于学习cesium的基本用法。
 
-This template should help get you started developing with Vue 3 in Vite.
+在调试过程中可修改src/views/HomeView.vue中的内容进行相关调试。
 
-## Recommended IDE Setup
+在项目目录中包含了Cesium基础学习笔记和官网案例学习记录。
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+学习路径参考自:https://cesium.com/learn/certified-developer-learning-paths/
 
-## Customize configuration
+所有实例均来自：
 
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
-## Project Setup
-
+## 下载依赖
 ```sh
 npm install
 ```
-
-### Compile and Hot-Reload for Development
-
+## 运行项目
 ```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
