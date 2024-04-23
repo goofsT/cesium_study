@@ -1,0 +1,4 @@
+> 案例地址：https://sandcastle.cesium.com/index.html?src=CZML%20Model%20-%20Node%20Transformations.html&label=All
+本案例核心包括：
+- CZML基本使用
+- CZML模型动画
