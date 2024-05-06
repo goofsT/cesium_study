@@ -7,7 +7,7 @@
 
 学习路径参考自:https://cesium.com/learn/certified-developer-learning-paths/
 
-所有实例均来自：
+所有实例均来自：https://sandcastle.cesium.com/index.html
 
 ## 下载依赖
 ```sh
