@@ -27,7 +27,7 @@ viewer.entities.add({
 });
 ```
 
->接下来我们来看一下Label和Billboard的区别和联系：
+>Label和Billboard的区别和联系：
 ```text
 Label和Billboard都是CesiumJS中的实体类型，都可以在3D场景中展示信息。
 
