@@ -1,10 +1,10 @@
 <script setup>
 import * as Cesium from 'cesium';
-import {onMounted, reactive} from "vue";
+import {onMounted, reactive,ref} from "vue";
 
 let viewer,scene,initMatrix
 let building=reactive({
-  'floor1':{primitive:null,isActive:false},
+  'floor1':{primitive:null},
 })
 const camera=reactive({
   lon:112.163130,
@@ -16,6 +16,7 @@ const camera=reactive({
 })
 const lon=112.14880
 const lat=31.949698
+const showInfoBox=ref(false)
 
 onMounted(()=>{
   initView()
@@ -52,15 +53,14 @@ const initView=async () => {
   });
   const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
   handler.setInputAction(function (movement) {
-    const cartesian = viewer.camera.pickEllipsoid(
-        movement.endPosition,//鼠标位置 包含x,y
-        scene.globe.ellipsoid//地球的椭球体模型
-    );
-    const cartographic = Cesium.Cartographic.fromCartesian(cartesian);//将笛卡尔坐标转换为地理坐标
-    const longitudeString = Cesium.Math.toDegrees(cartographic.longitude).toFixed(6);
-    const latitudeString = Cesium.Math.toDegrees(cartographic.latitude).toFixed(6);
-    console.log(longitudeString, latitudeString);
-  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    const pickedObject = viewer.scene.pick(movement.position);
+    if (Cesium.defined(pickedObject)) {
+      const entity = pickedObject.id;
+      if(entity&&entity.id&&entity.id==='buildingIcon'){
+
+      }
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
   await showModule('floor1')
   setBillboard()
 }
@@ -75,9 +75,6 @@ const showModule=async (name)=>{
   scene.primitives._primitives.forEach(primitive=>{
     scene.primitives.remove(primitive)
   })
-  Object.values(building).forEach(primitive=>{
-    primitive.isActive=false
-  })
 
   const position = Cesium.Cartesian3.fromDegrees(lon, lat, 65);
   initMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(position);
@@ -87,11 +84,10 @@ const showModule=async (name)=>{
       id: entityId,
       url: `/models/${name}.glb`,
       modelMatrix: initMatrix,
-      minimumPixelSize: 128,
-      maximumScale: 2000
+      minimumPixelSize: 0,
+      maximumScale: 200000
     });
     building[name] = {
-      isActive: true,
       primitive: scene.primitives.add(model)
     };
     applyCustomShader(building[name].primitive);
@@ -104,6 +100,7 @@ const showModule=async (name)=>{
 
 const setBillboard=()=>{
   viewer.entities.add({
+    id:'buildingIcon',
     //位置
     position: Cesium.Cartesian3.fromDegrees(112.150775, 31.949006),
     //广告牌
@@ -120,20 +117,6 @@ const setBillboard=()=>{
       width: 20, // 宽度 单位像素
       height: 20, // 高度 单位像素
       sizeInMeters: false, // 是否按照米来计算大小 设置后无论距离多远，大小都是一样的
-      /*
-      * 根据观察距离调整缩放比例
-      * NearFarScalar(near, nearValue, far, farValue)开始改变的最近距离，最近距离缩放比例，最远距离，最远距离缩放比例
-      * NearFarScalar(1.5e2, 1.5, 1.5e7, 0.0)意味着当观察者距离广告牌150米或更近时，广告牌的缩放比例为1.5，当观察者距离广告牌1500万米或更远时，广告牌的缩放比例为0.0。
-      *
-      * */
-     // scaleByDistance:new Cesium.NearFarScalar(1.5e2, 1.5, 1.5e7, 0.0),
-     // translucencyByDistance: new Cesium.NearFarScalar(1.5e2, 1.0, 1.5e7, 0.0),//根据观察距离调整透明度 <=150米时透明度为1.0 >1500万米时透明度为0.0
-      //pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.0, 1.5e7, 0.0),//根据观察距离调整偏移量 <=150米时偏移量为1.0 >1500万米时偏移量为0.0
-      /*
-      * 确定位置的高度相对于什么的
-      * CLAMP_TO_GROUND: 高度相对于地面 贴于地面
-      * RELATIVE_TO_GROUND: 高度相对于地面上某个点，例如建筑物的顶部
-      * */
       heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
@@ -158,7 +141,8 @@ const resetModelPosition=()=>{
   // 创建一个旋转矩阵，使模型绕 X 轴旋转 40 度
   const rotationMatrixX = Cesium.Matrix3.fromRotationX(Cesium.Math.toRadians(1.1));
   // 将旋转矩阵与模型矩阵相乘
-  Cesium.Matrix4.multiplyByMatrix3(initMatrix, rotationMatrixX, initMatrix);
+  Cesium.Matrix4.multiplyByMatrix3(initMatrix, rotationMatrixX, initMatrix)
+
 }
 const setModelTransition = (primitive, viewer, scene, duration) => {
   const startTime = Date.now();
@@ -219,11 +203,7 @@ const applyCustomShader = (primitive) => {
 </script>
 
 <template>
-  <div id="map-container">
-    <div id="map-controller">
-      <div :class="{'control-item': true, 'active': building['floor1'].isActive}" @click="showModule('floor1')">floor1</div>
-    </div>
-  </div>
+  <div id="map-container"></div>
 
 </template>
 <style lang="scss" scoped>
