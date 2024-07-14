@@ -1,13 +1,26 @@
 <script setup>
+/*
+* 使用entity对模型进行添加和切换
+* 保持只有一个entity在场景中
+* */
 import * as Cesium from 'cesium';
-import {onMounted} from "vue";
-let viewer
+import {onMounted,reactive,ref} from "vue";
+let viewer,scene
+let building=reactive({
+  'floor1':{entity:null,isActive:false},
+  'floor2':{entity:null,isActive:false},
+  'floor3':{entity:null,isActive:false},
+  'floor4':{entity:null,isActive:false}
+})
 onMounted(()=>{
   initView()
 })
 const initView=async () => {
   Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjOTU1YjhhNy1lYWQ4LTQ4ZGEtODgwYy0yMTI4NTY2ZTI0OWIiLCJpZCI6MjA3ODA5LCJpYXQiOjE3MTI3MzE5MjZ9.T9-QPYDmlXqERXo6EkmQyQXVwpmlL1jZtF0QKmMPZ1w'
   viewer = new Cesium.Viewer('map-container', {
+    terrain: Cesium.Terrain.fromWorldTerrain({
+      requestVertexNormals: true, //Needed to visualize slope
+    }),
     animation: false,  // 关闭动画控件
     shouldAnimate:true,//开启动画
     baseLayerPicker: true,  // 关闭图层选择器
@@ -21,210 +34,117 @@ const initView=async () => {
     navigationHelpButton: false,  // 关闭导航帮助按钮
     navigationInstructionsInitiallyVisible: false,  // 初始时不显示导航说明
   })
-  const scene = viewer.scene
-  const canvas= viewer.canvas
-  const camera= viewer.camera
-  const controller = scene.screenSpaceCameraController;// 获取相机控制器
-  // 元素获得键盘焦点
-  canvas.setAttribute('tabindex', '0')
-  canvas.addEventListener("click", function () {
-    canvas.focus();
-  });
-  canvas.focus();
-  /*
-  * SampledPositionProperty：表示一系列时刻和位置的集合，这个类常用于插值以及动画中，例如，可以表示一个物体随时间变化的位置。
-  * 创建 SampledPositionProperty 对象后，可以通过 addSample 方法添加样本，每个样本由一个时间和一个位置组成。
-  * */
-  const pathPosition = new Cesium.SampledPositionProperty();
-  //创建实体运动路径
-  const entityPath = viewer.entities.add({
-    position: pathPosition,
-    name: "path",
-    path: {
-      show: true,
-      leadTime: 0,//提前时间
-      trailTime: 60,//轨迹线的时间
-      width: 10,//轨迹线的宽度
-      resolution: 1,//每个轨迹线段的采样数
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 0.3,//发光强度
-        taperPower: 0.3,//锥度强度
-        color: Cesium.Color.PALEGOLDENROD,//颜色
-      }),
-    },
-  });
+  scene = viewer.scene
 
-  let speed = 10;//速度
-  let r = 0;
-  let speedVector = new Cesium.Cartesian3();//速度向量
-  const hpRoll = new Cesium.HeadingPitchRoll();//方向、俯仰、滚动
-  const hpRange = new Cesium.HeadingPitchRange();//方向、俯仰、范围
-  const deltaRadians = Cesium.Math.toRadians(3.0);//角度
-  let position = Cesium.Cartesian3.fromDegrees(
-      114.2653871,//负数表示西经 正数表示东经
-      30.6041382,
-      5000.0
-  );
- /*
- *函数生成器
- * 第一个参数是本地参考帧的北方向，第二个参数是本地参考帧的西方向。
- * @returns {Function} 一个函数，该函数将本地参考帧的原点和方向转换为固定参考帧的原点和方向。
- * 返回函数接收两个参数：一个位置（通常是一个 Cartesian3 对象，表示在固定参考师中的一个点）和一个可选的结果矩阵。
- * 返回函数返回的结果为一个4*4的矩阵，该矩阵将本地参考帧的原点和方向转换为固定参考帧的原点和方向。
- *
- * 相关地理信息概念：
- * 在地理信息系统和三维建模中，通常有两种坐标系：固定坐标系（Fixed Frame）和本地坐标系（Local Frame）。
- * 固定坐标系：通常是以地球中心为原点的全局坐标系
- * 本地坐标系：以某个特定地点为原点的局部坐标系。
- * 举例：假设你有一个物体（比如一个飞机或者一个人），你知道它在本地坐标系中的位置，但你想知道它在全球坐标系中的位置。
- * 这就需要进行坐标转换，也就是把本地坐标转换成固定坐标。这就是 Cesium.Transforms.localFrameToFixedFrameGenerator 函数的作用。
- *
- *
- * 在下方代码中，"north" 和 "west" 是定义了本地坐标系的方向。这意味着在这个本地坐标系中，"north" 是指向北方的轴，"west" 是指向西方的轴。
- * fixedFrameTransform 函数就是一个将本地坐标系（以 "north" 为北方向和 "west" 为西方向）转换为固定坐标系的转换函数。你可以用这个函数来把一个本地坐标系中的点转换到全球坐标系中。
- * */
-  const fixedFrameTransform = Cesium.Transforms.localFrameToFixedFrameGenerator(
-      "north",
-      "west"
-  );
-
-  const airplaneUri = await Cesium.IonResource.fromAssetId(2532972);
-  //加载飞机模型
-  const planePrimitive = scene.primitives.add(
-    await  Cesium.Model.fromGltfAsync({
-        url: airplaneUri,
-        //飞机模型矩阵
-        modelMatrix: Cesium.Transforms.headingPitchRollToFixedFrame(
-            position,
-            hpRoll,
-            Cesium.Ellipsoid.WGS84,
-            fixedFrameTransform
-        ),
-        minimumPixelSize: 128,
-      })
-  );
-  //监听飞机模型加载完成事件
-  planePrimitive.readyEvent.addEventListener(() => {
-   //飞机模型动画
-    planePrimitive.activeAnimations.addAll({
-      multiplier: 0.5,
-      loop: Cesium.ModelAnimationLoop.REPEAT,
-    });
-    r = 2.0 * Math.max(planePrimitive.boundingSphere.radius, camera.frustum.near);
-    controller.minimumZoomDistance = r * 0.5;//设置相机最小缩放距离
-    const center = planePrimitive.boundingSphere.center;//获取飞机模型中心点
-    const heading = Cesium.Math.toRadians(230.0);
-    const pitch = Cesium.Math.toRadians(-20.0);
-    hpRange.heading = heading;
-    hpRange.pitch = pitch;
-    hpRange.range = r * 50.0;
-    camera.lookAt(center, hpRange);
-  });
-  //绑定键盘事件
-  document.addEventListener("keydown", function (e) {
-    switch (e.code) {
-      case "ArrowDown":
-        if (e.shiftKey) {
-          // speed down
-          speed = Math.max(--speed, 1);
-        } else {
-          // pitch down
-          hpRoll.pitch -= deltaRadians;
-          if (hpRoll.pitch < -Cesium.Math.TWO_PI) {
-            hpRoll.pitch += Cesium.Math.TWO_PI;
-          }
-        }
-        break;
-      case "ArrowUp":
-        if (e.shiftKey) {
-          // speed up
-          speed = Math.min(++speed, 100);
-        } else {
-          // pitch up
-          hpRoll.pitch += deltaRadians;
-          if (hpRoll.pitch > Cesium.Math.TWO_PI) {
-            hpRoll.pitch -= Cesium.Math.TWO_PI;
-          }
-        }
-        break;
-      case "ArrowRight":
-        if (e.shiftKey) {
-          // roll right
-          hpRoll.roll += deltaRadians;
-          if (hpRoll.roll > Cesium.Math.TWO_PI) {
-            hpRoll.roll -= Cesium.Math.TWO_PI;
-          }
-        } else {
-          // turn right
-          hpRoll.heading += deltaRadians;
-          if (hpRoll.heading > Cesium.Math.TWO_PI) {
-            hpRoll.heading -= Cesium.Math.TWO_PI;
-          }
-        }
-        break;
-      case "ArrowLeft":
-        if (e.shiftKey) {
-          // roll left until
-          hpRoll.roll -= deltaRadians;
-          if (hpRoll.roll < 0.0) {
-            hpRoll.roll += Cesium.Math.TWO_PI;
-          }
-        } else {
-          // turn left
-          hpRoll.heading -= deltaRadians;
-          if (hpRoll.heading < 0.0) {
-            hpRoll.heading += Cesium.Math.TWO_PI;
-          }
-        }
-        break;
-      default:
+  //设置相机视角位置
+  const lon=112.151980
+  const lat=31.950290
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 148.0), // 1000 表示高度，可以根据需要调整
+    orientation: {
+      heading: Cesium.Math.toRadians(234), // 方向
+      pitch: Cesium.Math.toRadians(-22.48), // 俯仰
+      roll: 0.0 // 翻滚
     }
   });
 
-
-  viewer.scene.preUpdate.addEventListener(function (scene, time) {
-    //飞行速度
-    speedVector = Cesium.Cartesian3.multiplyByScalar(
-        Cesium.Cartesian3.UNIT_X,
-        speed / 10,
-        speedVector
-    );
-    //飞机位置
-    position = Cesium.Matrix4.multiplyByPoint(
-        planePrimitive.modelMatrix,
-        speedVector,
-        position
-    );
-    pathPosition.addSample(Cesium.JulianDate.now(), position);//添加路径样本
-    //更新飞机位置以及姿态
-    Cesium.Transforms.headingPitchRollToFixedFrame(
-        position,
-        hpRoll,
-        Cesium.Ellipsoid.WGS84,
-        fixedFrameTransform,
-        planePrimitive.modelMatrix
-    );
-    camera.constrainedAxis = Cesium.Cartesian3.UNIT_Z;
-
-    camera.lookAt(position, new Cesium.Cartesian3(0.0, 0.0, 100.0));
-  });
-
-
-
-
+  const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+  handler.setInputAction(function (movement) {
+    //方法通过射线追踪的方式，将从相机出发、经过屏幕位置的射线与椭球体相交，计算出射线与椭球体的交点，然后返回这个交点的笛卡尔坐标。
+    //pickEllipsoid方法返回一个Cartesian3对象，表示从相机到地球椭球体上的表面的射线与椭球体的交点
+    // const cartesian = viewer.camera.pickEllipsoid(
+    //     movement.endPosition,//鼠标位置 包含x,y
+    //     scene.globe.ellipsoid//地球的椭球体模型
+    // );
+    // const cartographic = Cesium.Cartographic.fromCartesian(cartesian);//将笛卡尔坐标转换为地理坐标
+    // const longitudeString = Cesium.Math.toDegrees(cartographic.longitude).toFixed(6);
+    // const latitudeString = Cesium.Math.toDegrees(cartographic.latitude).toFixed(6);
+    // console.log(longitudeString, latitudeString);
+    // console.log(viewer.camera)
+    const position = viewer.camera.positionCartographic;
+    // const cameraInfo = {
+    //   longitude: Cesium.Math.toDegrees(position.longitude).toFixed(6),
+    //   latitude: Cesium.Math.toDegrees(position.latitude).toFixed(6),
+    //   height: position.height.toFixed(2),
+    //   heading: Cesium.Math.toDegrees(viewer.camera.heading).toFixed(2),
+    //   pitch: Cesium.Math.toDegrees(viewer.camera.pitch).toFixed(2),
+    //   roll: Cesium.Math.toDegrees(viewer.camera.roll).toFixed(2),
+    // };
+    // console.log(cameraInfo)
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
 }
 
-
+//添加模型到实体中
+const showModule=(name)=>{
+  const lon=112.14880
+  const lat=31.949698
+  const entityId = name;
+  if(viewer.entities.values.some(entity => entity.id === entityId) )return //判断是否已存在
+  Object.values(building).forEach(floor=>{
+    floor.entity && viewer.entities.remove(floor.entity)
+    floor.isActive=false
+  })
+  const position=Cesium.Cartesian3.fromDegrees(lon, lat, 68);
+  const modelOrient=Cesium.Transforms.headingPitchRollQuaternion(
+      position,
+      new Cesium.HeadingPitchRoll(-0.58, 0.0, 0.023)
+  )
+  building[name].isActive=true
+  building[name].entity= viewer.entities.add({
+    id: entityId,
+    position: position,
+    orientation: modelOrient,
+    model: {
+      uri: `/models/${name}.glb`,
+    },
+  });
+}
 
 </script>
 
 <template>
-  <div id="map-container"></div>
+  <div id="map-container">
+    <div id="map-controller">
+      <div :class="{'control-item': true, 'active': building['floor1'].isActive}" @click="showModule('floor1')">floor1</div>
+      <div :class="{'control-item': true, 'active': building['floor2'].isActive}" @click="showModule('floor2')">floor2</div>
+      <div :class="{'control-item': true, 'active': building['floor3'].isActive}" @click="showModule('floor3')">floor3</div>
+      <div :class="{'control-item': true, 'active': building['floor4'].isActive}" @click="showModule('floor4')">floor4</div>
+    </div>
+  </div>
+
 </template>
 <style lang="scss" scoped>
 #map-container{
   height: 100vh;
   width:100vw;
+  position:relative;
+  #map-controller{
+    position: absolute;
+    left: 0;
+    top:0;
+    z-index: 1;
+    width:10vw;
+    .control-item{
+      text-align: center;
+      width:100%;
+      height:5vh;
+      line-height: 5vh;
+      background-color: rgba(255,255,255,0.7);
+      margin-top: 1vh;
+      border-radius: .5rem;
+      &:hover{
+        background-color: rgba(255,255,255,0.9);
+        cursor:pointer;
+      }
+    }
+    .active{
+      background-color: #188c9d;
+      &:hover{
+        background-color: #21c2e0;
+      }
+    }
+  }
 }
+
 </style>
